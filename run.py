@@ -1168,31 +1168,48 @@ def one_test_funcion():
 def all_result_test_funcion():
     """one object testing"""
     # spile_object(input_file,object_type,schema_name):
+
+    # source_file=source_pr
+    # output_index_file = output_final_pr
+    # object_type=TITLE_PROCEDURE
+
+    # source_file=source_vw
+    # output_index_file = output_final_vw
+    # object_type=TITLE_VIEW
+
+    source_file=source_mv
+    output_index_file = output_final_mv
+    object_type=TITLE_M_VIEW
+
     output_str = ""
     results = []
-    for result_split_object in common.split_object(source_pr, TITLE_PROCEDURE, schema_name):
+
+    for result_split_object in common.split_object(source_file, object_type, schema_name):
+        # results.append(result_split_object[2])
         for result_one_statement in common.split_statement_using_semiqute_for_one_object(result_split_object[2]):
             # results.append(result_one_statement)
             output_str = result_split_object[0]+"," + \
-                common.get_insert_into_object_name(result_one_statement)+","
-            print(result_one_statement)
+                common.get_insert_into_object_name(result_one_statement)+ \
+                common.get_update_object_name(result_one_statement)+ ",[],"
+            # print(result_one_statement)
             temp_results = []
             for table_names in common.get_table_in_one_sql_statement_rec(result_one_statement, temp_results):
                 output_str += table_names+","
                 temp_results = []
 
             # output_str += "\n"
-            # print(output_str)
+            print(output_str)
             results.append(output_str)
 
     # output to file
     try:
-        output_index_file = output_final_pr
+
         with open(output_index_file, 'w') as outfile:
             for result in results:
                 outfile.write(result+"\n")
     except IOError as e:
         raise IOError(f"Error copying file: {e}")
+
 
 
 if __name__ == "__main__":
