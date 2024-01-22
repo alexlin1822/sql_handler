@@ -81,6 +81,52 @@ def get_insert_into_object_name(line):
     return inst_str
 
 
+def get_update_object_name(line):
+    """
+        (Tested)
+        Get a table name from 'update ' 
+    """
+
+    inst_str = ""
+    inst = line.lower().find("update ")
+
+    if inst > -1:
+        inst_str = line.lower()[inst+len("update "):]
+        inst_str = inst_str.strip()
+        inst_str_aa = inst_str
+        inst_str_bb = inst_str
+
+        aa = inst_str_aa.find("set ")
+
+        if aa>-1:
+            inst_str = inst_str_aa[:aa].strip()
+        
+        if inst_str[-1:] == '\n':
+            inst_str = inst_str[:-1]
+
+        # print("inst line: "+ inst_str)
+
+    return inst_str
+
+def delete_comment(input_str):
+    """
+    Tested!
+        delete /*....*/
+    """
+    sql_str=input_str
+    comment_block=False
+    start_index=-1
+    end_index=-1
+    while(sql_str!=""):
+        start_index=sql_str.find('/*')
+        end_index=sql_str.find('*/')
+        if start_index>-1 and  end_index>-1 and  start_index<end_index:
+            sql_str=sql_str[:start_index]+sql_str[end_index+2:]
+        else:
+            return sql_str
+
+
+
 def split_object(input_file, object_type, schema_name):
     """
     Tested!
@@ -96,6 +142,7 @@ def split_object(input_file, object_type, schema_name):
         current_object_name = ""
         current_Original_SQL = ""
         current_simple_SQL = ""
+        in_comment_block=0
 
         with open(input_file, 'r') as infile:
             for line in infile:
@@ -104,30 +151,7 @@ def split_object(input_file, object_type, schema_name):
                     # save the last block
                     if current_Original_SQL != "":
                         # format sql for simple SQL
-                        pattern = re.compile(r'/\*.*?\*/', re.DOTALL)
-                        current_simple_SQL = re.sub(
-                            pattern, '', current_simple_SQL)
-                        current_simple_SQL = current_simple_SQL.lower()
-
-                        current_simple_SQL = re.sub(
-                            r"\s+from\s+\(", " from(", current_simple_SQL)
-                        current_simple_SQL = re.sub(
-                            r"\s+join\s+\(", " join(", current_simple_SQL)
-
-                        # current_simple_SQL = re.sub(
-                        #     r'from.*?\(', 'from(', current_simple_SQL)
-                        # current_simple_SQL = re.sub(
-                        #     r'join.*?\(', 'join(', current_simple_SQL)
-
-                        # current_simple_SQL = current_simple_SQL.replace(
-                        #     'from (', 'from(')
-                        # current_simple_SQL = current_simple_SQL.replace(
-                        #     'join (', 'join(')
-
-                        # current_simple_SQL = current_simple_SQL.replace(
-                        #     'from (', 'from(')
-                        # current_simple_SQL = current_simple_SQL.replace(
-                        #     'join (', 'join(')
+                        current_simple_SQL = format_simple_sql(current_simple_SQL)  
 
                         # save the last block
                         results.append(
@@ -143,19 +167,84 @@ def split_object(input_file, object_type, schema_name):
                 # load each line
                 current_Original_SQL += line
                 temp_str = line
-                if '--' in temp_str:
-                    temp_str = temp_str[:temp_str.find('--')]
 
+                #delete comment
+                if in_comment_block>0:
+                    has_comment_block=temp_str.find('/*')
+                    has_comment_block_end=temp_str.find('*/')
+                    if has_comment_block==-1:
+                        has_comment_block=sys.maxsize
+                    if has_comment_block_end==-1:
+                        has_comment_block_end=sys.maxsize    
+
+                    if has_comment_block<has_comment_block_end:
+                        in_comment_block+=1
+                    elif has_comment_block>has_comment_block_end:
+                        in_comment_block-=1
+                        temp_str=temp_str[:has_comment_block]+temp_str[has_comment_block_end+2:]
+                    else:
+                        temp_str=""
+                
+                if in_comment_block==0:
+                    has_comment_block=temp_str.find('/*')
+                    has_comment_block_right=temp_str.find('--')
+                    if has_comment_block==-1:
+                        has_comment_block=sys.maxsize
+                    if has_comment_block_right==-1:
+                        has_comment_block_right=sys.maxsize                        
+                    
+                    if has_comment_block<has_comment_block_right:    # handle /*
+                        temp_str=temp_str[:has_comment_block]
+                        rest_str=temp_str[has_comment_block+2:]
+
+                        while (rest_str!="" and in_comment_block>0):
+                            has_comment_block=rest_str.find('/*')
+                            has_comment_block_end=rest_str.find('*/')
+                            if has_comment_block==-1:
+                                has_comment_block=sys.maxsize
+                            if has_comment_block_end==-1:
+                                has_comment_block_end=sys.maxsize    
+
+                            if has_comment_block<has_comment_block_end:
+                                in_comment_block+=1
+                                rest_str=rest_str[has_comment_block+2:]
+                            elif has_comment_block>has_comment_block_end:
+                                in_comment_block-=1
+                                rest_str=rest_str[has_comment_block_end+2:]
+                            else:
+                                rest_str=""
+
+                    else:                                              #handle --
+                        temp_str=temp_str[:has_comment_block_right]
+                    
+                #delete others i.e \n \t " "
                 current_simple_SQL += temp_str.strip().replace("\n", " ").replace("\t",
                                                                                   " ").replace("  ", " ")+" "
 
             if current_Original_SQL != "":
+                # format sql for simple SQL
+                current_simple_SQL = format_simple_sql(current_simple_SQL)  
+
+                # save the last block
                 results.append(
                     [current_object_name, current_Original_SQL, current_simple_SQL])
         return results
     except IOError as e:
         raise IOError(f"Error copying file: {e}")
 
+def format_simple_sql(input_str):
+    """ 
+    (Tested)
+        Format simple sql
+        'from ('    -> 'from('
+        'join ('    -> 'join('
+    """
+    current_simple_SQL=input_str
+    current_simple_SQL = current_simple_SQL.lower()
+    current_simple_SQL = re.sub(r"\s+from\s+\(", " from(", current_simple_SQL)
+    current_simple_SQL = re.sub(r"\s+join\s+\(", " join(", current_simple_SQL)
+    return current_simple_SQL
+    
 
 def split_statement_using_semiqute_for_one_object(text_single_object):
     """
@@ -275,7 +364,7 @@ def get_end_keyword_index(text, type):
         keywords = [" where ", " group by ", " order by ", " limit ", " offset ", " having ", " union ", " intersect ", " except ", " on ", " as ",
                     " left join", " left outer join", " right join", " right outer join", " self join",
                     " full outer join", " full join", " inner join", " outer join", " cross join",
-                    " natural ", " over ", " partition by ", " join"]
+                    " natural ", " over ", " partition by ", " join",")"]
     elif type == "join":
         keywords = [" on ", " as ",
                     " left join", " left outer join", " right join", " right outer join", " self join",
@@ -312,117 +401,3 @@ def get_end_blanket_index(text):
             if i == 0:
                 return j
     return -1
-
-
-"""
-TODO:
-def get_table_from_insert_into(one_object_simple_sql): get all tables from 'insert into' from one object
-return 2-d array:
-1. [inser_into_object_name]
-2. [tables name]
-
-def get_table_from_update_set(one_object_simple_sql): get all tables i all 'update set' from one object
-return 2-d array:
-1. [update_set_object_name]
-2. [tables name]
-
-"""
-
-# def get_table_in_one_insert_into_sql_statement(text):
-#     """
-#         input must be single insert_into sql statement
-#         Get all tables from one one insert_into sql object statement
-#         call get_table_in_one_sql_statement() function
-
-#         return array:
-#         1. [insert into table name]
-#         1. [table names]
-#     """
-#     print("get_table_in_one_insert_into_sql_statement: " + text)
-#     # set condition
-#     # just handle insert into and update set
-#     TC = "insert into "
-#     results = []
-#     if TC in text:
-#         new_line = text.lower()
-#         results = rec_get_table_from_blackset(new_line)
-
-#         # for result in results:
-#         #     print(result)
-#     return results
-
-
-# recuive to find string
-
-
-def rec_get_table_from_blackset(input_str):
-    # From block
-    TC1 = ' from('
-    results = []
-    ii = input_str.find(TC1)
-
-    if ii > -1:
-        temp_str = input_str[ii+len(TC1):-1]
-        temp_str = temp_str.strip()
-        if temp_str[:-1] != ')':
-            return results
-        temp_str = temp_str[:-1]
-        print("temp_str: "+temp_str)
-        current_results = rec_get_table_from_blackset(input_str)
-        for current_result in current_results:
-            results.append(current_result)
-        return results
-    else:
-        TC2 = ' from '
-        return results
-
-    # # Join Block
-    # rest_str = input_str
-
-    # block_end_index = -1
-    # tochar_index = rest_str.find(TC+"(")
-
-    # if tochar_index < 0:
-    #     tochar_index = rest_str.find(TC+" (")
-
-    # if tochar_index > -1:
-    #     rest_str = rest_str[tochar_index:]
-
-    #     i = 0
-    #     has_comma = False
-
-    #     for j, char in enumerate(rest_str):
-    #         if i == 1 and char == ',':
-    #             has_comma = True
-    #         if char == '(':
-    #             i += 1
-    #         if char == ')':
-    #             i -= 1
-    #             block_end_index = j+1
-
-    #             if i == 0:
-    #                 if has_comma == False:
-    #                     new_block = rest_str[:block_end_index]
-    #                     results.append(new_block)
-
-    #                     new_tochar_index = new_block.find(TC+"(")
-
-    #                     if new_tochar_index < 0:
-    #                         new_tochar_index = new_block.find(TC+" (")
-
-    #                     if new_tochar_index > -1:
-    #                         sub_results = get_to_char_string(
-    #                             new_block[len(TC):])
-    #                         for sub_result in sub_results:
-    #                             results.append(sub_result)
-
-        # rest_str=rest_str[block_end_index+1:]
-        # break
-
-    # if block_end_index==-1:
-    #     break
-    return results
-
-
-def get_table_at_from_block(input_str):
-    print("get_table_at_from_block")
