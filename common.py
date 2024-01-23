@@ -207,7 +207,6 @@ def split_object(input_file, object_type, schema_name):
             if current_Original_SQL != "":
                 # format sql for simple SQL
                 current_simple_SQL = format_simple_sql(current_simple_SQL)
-
                 # save the last block
                 results.append(
                     [current_object_name, current_Original_SQL, current_simple_SQL])
@@ -248,10 +247,19 @@ def format_simple_sql(input_str):
         'from ('    -> 'from('
         'join ('    -> 'join('
     """
-    current_simple_SQL = input_str
-    current_simple_SQL = current_simple_SQL.lower()
+    current_simple_SQL = input_str.lower().strip()
+    # Handle execute
+    if current_simple_SQL.startswith('EXECUTE '.lower()):
+        current_simple_SQL=current_simple_SQL.replace('EXECUTE '.lower(),'')
+        if current_simple_SQL.startswith('IMMEDIATE '.lower()):
+            current_simple_SQL=current_simple_SQL.replace('IMMEDIATE '.lower(),'')
+        current_simple_SQL=current_simple_SQL.replace('||','')
+        current_simple_SQL=current_simple_SQL.replace("'","")
+
+    # Handle from and join
     current_simple_SQL = re.sub(r"\s+from\s+\(", " from(", current_simple_SQL)
     current_simple_SQL = re.sub(r"\s+join\s+\(", " join(", current_simple_SQL)
+
     return current_simple_SQL
 
 
@@ -271,10 +279,10 @@ def split_statement_using_semiqute_for_one_object(text_single_object):
 
     if ";" in new_text:
         results = new_text.split(";")
-        results = [element.strip() for element in results]
-        results = [item.strip() for item in results if item.strip() != ""]
+        results = [format_simple_sql(item.strip()) for item in results if item.strip() != ""]
     else:
-        results.append(new_text.strip())
+        if new_text.strip()!="":
+            results.append(new_text.strip())
     return results
 
 
