@@ -98,33 +98,15 @@ def get_update_object_name(line):
 
         aa = inst_str_aa.find("set ")
 
-        if aa>-1:
+        if aa > -1:
             inst_str = inst_str_aa[:aa].strip()
-        
+
         if inst_str[-1:] == '\n':
             inst_str = inst_str[:-1]
 
         # print("inst line: "+ inst_str)
 
     return inst_str
-
-def delete_comment(input_str):
-    """
-    Tested!
-        delete /*....*/
-    """
-    sql_str=input_str
-    comment_block=False
-    start_index=-1
-    end_index=-1
-    while(sql_str!=""):
-        start_index=sql_str.find('/*')
-        end_index=sql_str.find('*/')
-        if start_index>-1 and  end_index>-1 and  start_index<end_index:
-            sql_str=sql_str[:start_index]+sql_str[end_index+2:]
-        else:
-            return sql_str
-
 
 
 def split_object(input_file, object_type, schema_name):
@@ -142,7 +124,7 @@ def split_object(input_file, object_type, schema_name):
         current_object_name = ""
         current_Original_SQL = ""
         current_simple_SQL = ""
-        in_comment_block=0
+        in_comment_block = 0
 
         with open(input_file, 'r') as infile:
             for line in infile:
@@ -151,7 +133,8 @@ def split_object(input_file, object_type, schema_name):
                     # save the last block
                     if current_Original_SQL != "":
                         # format sql for simple SQL
-                        current_simple_SQL = format_simple_sql(current_simple_SQL)  
+                        current_simple_SQL = format_simple_sql(
+                            current_simple_SQL)
 
                         # save the last block
                         results.append(
@@ -168,62 +151,63 @@ def split_object(input_file, object_type, schema_name):
                 current_Original_SQL += line
                 temp_str = line
 
-                #delete comment
-                if in_comment_block>0:
-                    has_comment_block=temp_str.find('/*')
-                    has_comment_block_end=temp_str.find('*/')
-                    if has_comment_block==-1:
-                        has_comment_block=sys.maxsize
-                    if has_comment_block_end==-1:
-                        has_comment_block_end=sys.maxsize    
+                # delete comment
+                if in_comment_block > 0:
+                    has_comment_block = temp_str.find('/*')
+                    has_comment_block_end = temp_str.find('*/')
+                    if has_comment_block == -1:
+                        has_comment_block = sys.maxsize
+                    if has_comment_block_end == -1:
+                        has_comment_block_end = sys.maxsize
 
-                    if has_comment_block<has_comment_block_end:
-                        in_comment_block+=1
-                    elif has_comment_block>has_comment_block_end:
-                        in_comment_block-=1
-                        temp_str=temp_str[:has_comment_block]+temp_str[has_comment_block_end+2:]
+                    if has_comment_block < has_comment_block_end:
+                        in_comment_block += 1
+                    elif has_comment_block > has_comment_block_end:
+                        in_comment_block -= 1
+                        temp_str = temp_str[:has_comment_block] + \
+                            temp_str[has_comment_block_end+2:]
                     else:
-                        temp_str=""
-                
-                if in_comment_block==0:
-                    has_comment_block=temp_str.find('/*')
-                    has_comment_block_right=temp_str.find('--')
-                    if has_comment_block==-1:
-                        has_comment_block=sys.maxsize
-                    if has_comment_block_right==-1:
-                        has_comment_block_right=sys.maxsize                        
-                    
-                    if has_comment_block<has_comment_block_right:    # handle /*
-                        temp_str=temp_str[:has_comment_block]
-                        rest_str=temp_str[has_comment_block+2:]
+                        temp_str = ""
 
-                        while (rest_str!="" and in_comment_block>0):
-                            has_comment_block=rest_str.find('/*')
-                            has_comment_block_end=rest_str.find('*/')
-                            if has_comment_block==-1:
-                                has_comment_block=sys.maxsize
-                            if has_comment_block_end==-1:
-                                has_comment_block_end=sys.maxsize    
+                if in_comment_block == 0:
+                    has_comment_block = temp_str.find('/*')
+                    has_comment_block_right = temp_str.find('--')
+                    if has_comment_block == -1:
+                        has_comment_block = sys.maxsize
+                    if has_comment_block_right == -1:
+                        has_comment_block_right = sys.maxsize
 
-                            if has_comment_block<has_comment_block_end:
-                                in_comment_block+=1
-                                rest_str=rest_str[has_comment_block+2:]
-                            elif has_comment_block>has_comment_block_end:
-                                in_comment_block-=1
-                                rest_str=rest_str[has_comment_block_end+2:]
+                    if has_comment_block < has_comment_block_right:    # handle /*
+                        temp_str = temp_str[:has_comment_block]
+                        rest_str = temp_str[has_comment_block+2:]
+
+                        while (rest_str != "" and in_comment_block > 0):
+                            has_comment_block = rest_str.find('/*')
+                            has_comment_block_end = rest_str.find('*/')
+                            if has_comment_block == -1:
+                                has_comment_block = sys.maxsize
+                            if has_comment_block_end == -1:
+                                has_comment_block_end = sys.maxsize
+
+                            if has_comment_block < has_comment_block_end:
+                                in_comment_block += 1
+                                rest_str = rest_str[has_comment_block+2:]
+                            elif has_comment_block > has_comment_block_end:
+                                in_comment_block -= 1
+                                rest_str = rest_str[has_comment_block_end+2:]
                             else:
-                                rest_str=""
+                                rest_str = ""
 
-                    else:                                              #handle --
-                        temp_str=temp_str[:has_comment_block_right]
-                    
-                #delete others i.e \n \t " "
+                    else:  # handle --
+                        temp_str = temp_str[:has_comment_block_right]
+
+                # delete others i.e \n \t " "
                 current_simple_SQL += temp_str.strip().replace("\n", " ").replace("\t",
                                                                                   " ").replace("  ", " ")+" "
 
             if current_Original_SQL != "":
                 # format sql for simple SQL
-                current_simple_SQL = format_simple_sql(current_simple_SQL)  
+                current_simple_SQL = format_simple_sql(current_simple_SQL)
 
                 # save the last block
                 results.append(
@@ -232,6 +216,7 @@ def split_object(input_file, object_type, schema_name):
     except IOError as e:
         raise IOError(f"Error copying file: {e}")
 
+
 def format_simple_sql(input_str):
     """ 
     (Tested)
@@ -239,12 +224,12 @@ def format_simple_sql(input_str):
         'from ('    -> 'from('
         'join ('    -> 'join('
     """
-    current_simple_SQL=input_str
+    current_simple_SQL = input_str
     current_simple_SQL = current_simple_SQL.lower()
     current_simple_SQL = re.sub(r"\s+from\s+\(", " from(", current_simple_SQL)
     current_simple_SQL = re.sub(r"\s+join\s+\(", " join(", current_simple_SQL)
     return current_simple_SQL
-    
+
 
 def split_statement_using_semiqute_for_one_object(text_single_object):
     """
@@ -364,7 +349,7 @@ def get_end_keyword_index(text, type):
         keywords = [" where ", " group by ", " order by ", " limit ", " offset ", " having ", " union ", " intersect ", " except ", " on ", " as ",
                     " left join", " left outer join", " right join", " right outer join", " self join",
                     " full outer join", " full join", " inner join", " outer join", " cross join",
-                    " natural ", " over ", " partition by ", " join",")"]
+                    " natural ", " over ", " partition by ", " join", ")"]
     elif type == "join":
         keywords = [" on ", " as ",
                     " left join", " left outer join", " right join", " right outer join", " self join",
