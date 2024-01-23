@@ -197,7 +197,6 @@ def split_object(input_file, object_type, schema_name):
                                 rest_str = rest_str[has_comment_block_end+2:]
                             else:
                                 rest_str = ""
-
                     else:  # handle --
                         temp_str = temp_str[:has_comment_block_right]
 
@@ -215,6 +214,31 @@ def split_object(input_file, object_type, schema_name):
         return results
     except IOError as e:
         raise IOError(f"Error copying file: {e}")
+
+
+def get_near_keyword_index(sql, keywords):
+    """
+        (Tested)
+        Get near keyword index 
+        return -1 if not found
+        return index of keyword and minumum position
+    """
+    min = sys.maxsize
+    index = -1
+    sql_str = sql.lower()
+
+    positions = []
+    for keyword in keywords:
+        positions.append(-1)
+
+    for i, keyword in enumerate(keywords):
+        positions[i] = sql_str.find(keyword)
+        if positions[i] > -1 and positions[i] < min:
+            min = positions[i]
+            index = i
+    if min == sys.maxsize:
+        min = -1
+    return index, min
 
 
 def format_simple_sql(input_str):
@@ -386,3 +410,76 @@ def get_end_blanket_index(text):
             if i == 0:
                 return j
     return -1
+
+
+def replace_to_char(text):
+    """
+    (Tested)
+        replace all to_char() to ()::varchar
+        call recursive function get_to_char_string() to find all to_char() 
+    """
+    TC = "to_char"
+    new_line = text.lower()
+    results = get_to_char_string(new_line)
+
+    for result in results:
+        new_line = new_line.replace(result, result[len(TC):]+"::varchar")
+    return new_line
+
+# recuive to find string
+
+
+def get_to_char_string(input_str):
+    """
+    (Tested)
+        recursive function to find all to_char() 
+        if to_char() has ',' in (), then ignore it
+    """
+    results = []
+    rest_str = input_str
+    TC = "to_char"
+
+    while (rest_str.strip() != ""):
+        block_end_index = -1
+        tochar_index = rest_str.find(TC+"(")
+
+        if tochar_index < 0:
+            tochar_index = rest_str.find(TC+" (")
+
+        if tochar_index > -1:
+            rest_str = rest_str[tochar_index:]
+
+            i = 0
+            has_comma = False
+
+            for j, char in enumerate(rest_str):
+                if i == 1 and char == ',':
+                    has_comma = True
+                if char == '(':
+                    i += 1
+                if char == ')':
+                    i -= 1
+                    block_end_index = j+1
+
+                    if i == 0:
+                        if has_comma == False:
+                            new_block = rest_str[:block_end_index]
+                            results.append(new_block)
+
+                            new_tochar_index = new_block.find(TC+"(")
+
+                            if new_tochar_index < 0:
+                                new_tochar_index = new_block.find(TC+" (")
+
+                            if new_tochar_index > -1:
+                                sub_results = get_to_char_string(
+                                    new_block[len(TC):])
+                                for sub_result in sub_results:
+                                    results.append(sub_result)
+
+                        rest_str = rest_str[block_end_index+1:]
+                        break
+
+        if block_end_index == -1:
+            break
+    return results

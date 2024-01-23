@@ -20,85 +20,6 @@ def copy_file_lines(input_file, output_file):
         raise IOError(f"Error copying file: {e}")
 
 
-def replace_to_char(text):
-    TC = "to_char"
-    new_line = text.lower()
-    results = get_to_char_string(new_line)
-
-    for result in results:
-        new_line = new_line.replace(result, result[len(TC):]+"::varchar")
-
-    # try:
-    #     matches = re.findall(r"to_char \(([^,]+)\)", new_line)
-    #     for match in matches:
-    #         if "," not in match:
-    #             # new_line = re.sub(rf"to_char \({match}\)", rf"({match})::varchar", new_line)
-    #             rest_str = re.sub(rf"to_char \({match}\)", rf"({match})::varchar", new_line)
-    # except :
-    #     rest_str=new_line
-
-    # try:
-    #     matches = re.findall(r"to_char\(([^,]+)\)", new_line)
-    #     for match in matches:
-    #         if "," not in match:
-    #             rest_str = re.sub(rf"to_char\({match}\)", rf"({match})::varchar", new_line)
-    # except :
-    #     rest_str=new_line
-    return new_line
-
-# recuive to find string
-
-
-def get_to_char_string(input_str):
-    results = []
-    rest_str = input_str
-    TC = "to_char"
-
-    while (rest_str.strip() != ""):
-        block_end_index = -1
-        tochar_index = rest_str.find(TC+"(")
-
-        if tochar_index < 0:
-            tochar_index = rest_str.find(TC+" (")
-
-        if tochar_index > -1:
-            rest_str = rest_str[tochar_index:]
-
-            i = 0
-            has_comma = False
-
-            for j, char in enumerate(rest_str):
-                if i == 1 and char == ',':
-                    has_comma = True
-                if char == '(':
-                    i += 1
-                if char == ')':
-                    i -= 1
-                    block_end_index = j+1
-
-                    if i == 0:
-                        if has_comma == False:
-                            new_block = rest_str[:block_end_index]
-                            results.append(new_block)
-
-                            new_tochar_index = new_block.find(TC+"(")
-
-                            if new_tochar_index < 0:
-                                new_tochar_index = new_block.find(TC+" (")
-
-                            if new_tochar_index > -1:
-                                sub_results = get_to_char_string(
-                                    new_block[len(TC):])
-                                for sub_result in sub_results:
-                                    results.append(sub_result)
-
-                        rest_str = rest_str[block_end_index+1:]
-                        break
-
-        if block_end_index == -1:
-            break
-    return results
-
 # MView grammar Fixing
 
 
@@ -155,7 +76,7 @@ def mview_fix(input_file, output_file):
                         new_line = new_line.replace(msg, "substring (")
 
                     ### To_char  ###
-                    new_line = replace_to_char(new_line)
+                    new_line = common.replace_to_char(new_line)
 
                     ### To_NUMBER  ###
                     # if "aws_oracle_ext.To_NUMBER" in line:
@@ -1169,17 +1090,17 @@ def all_result_test_funcion():
     """one object testing"""
     # spile_object(input_file,object_type,schema_name):
 
-    # source_file=source_pr
-    # output_index_file = output_final_pr
-    # object_type=TITLE_PROCEDURE
+    source_file = source_pr
+    output_index_file = output_final_pr
+    object_type = TITLE_PROCEDURE
 
     # source_file=source_vw
     # output_index_file = output_final_vw
     # object_type=TITLE_VIEW
 
-    source_file = source_mv
-    output_index_file = output_final_mv
-    object_type = TITLE_M_VIEW
+    # source_file = source_mv
+    # output_index_file = output_final_mv
+    # object_type = TITLE_M_VIEW
 
     output_str = ""
     results = []
