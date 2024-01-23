@@ -507,7 +507,7 @@ def generate_index(input_file, output_index_file, db_object_type):
 
                     i += 1
                     # Getting object name
-                    object_title = get_object_name(new_line.lower())
+                    object_title = common.get_object_name(new_line.lower())
                     if object_title != "":
                         # index_string+=str(i)+","+object_title.strip().lower()+","
                         index_string += object_title.strip().lower()
@@ -578,7 +578,7 @@ def add_schema_generate_index(schema_name, input_file, output_file, output_org_i
 
                     i += 1
                     # Getting object name
-                    object_title = get_object_name(new_line.lower())
+                    object_title = common.get_object_name(new_line.lower())
                     if object_title != "":
                         index_string += str(i)+"," + \
                             object_title.strip().lower()+","
@@ -826,7 +826,7 @@ def add_comments(input_file, output_file, index_file, schema_name):
             for line in infile:
                 line = line.lower()
                 if line.startswith("create ") and schema_name in line:
-                    title = get_object_name(line)
+                    title = common.get_object_name(line)
 
                     if title != "":
                         # first element in comment must be object(view or mivew) name
@@ -1177,9 +1177,9 @@ def all_result_test_funcion():
     # output_index_file = output_final_vw
     # object_type=TITLE_VIEW
 
-    source_file=source_mv
+    source_file = source_mv
     output_index_file = output_final_mv
-    object_type=TITLE_M_VIEW
+    object_type = TITLE_M_VIEW
 
     output_str = ""
     results = []
@@ -1189,8 +1189,8 @@ def all_result_test_funcion():
         for result_one_statement in common.split_statement_using_semiqute_for_one_object(result_split_object[2]):
             # results.append(result_one_statement)
             output_str = result_split_object[0]+"," + \
-                common.get_insert_into_object_name(result_one_statement)+ \
-                common.get_update_object_name(result_one_statement)+ ",[],"
+                common.get_insert_into_object_name(result_one_statement) + \
+                common.get_update_object_name(result_one_statement) + ",[],"
             # print(result_one_statement)
             temp_results = []
             for table_names in common.get_table_in_one_sql_statement_rec(result_one_statement, temp_results):
@@ -1209,7 +1209,6 @@ def all_result_test_funcion():
                 outfile.write(result+"\n")
     except IOError as e:
         raise IOError(f"Error copying file: {e}")
-
 
 
 if __name__ == "__main__":
