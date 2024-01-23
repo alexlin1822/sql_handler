@@ -1119,8 +1119,9 @@ def all_result_test_funcion():
                 temp_results = []
 
             # output_str += "\n"
-            print(output_str)
-            results.append(output_str)
+            if output_str[-5:]!=',,[],':        # no print out the emtpy line.
+                print(output_str)
+                results.append(output_str)
 
     # output to file
     try:
