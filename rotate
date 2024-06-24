@@ -70,4 +70,26 @@ namespace RotateCanvasExample
 
             using (var canvas = new SKCanvas(rotatedBitmap))
             {
-                // Move the canvas origin to the center of the new
+                // Move the canvas origin to the center of the new bitmap
+                canvas.Translate(height / 2, width / 2);
+                canvas.RotateDegrees(degrees);
+                canvas.Translate(-width / 2, -height / 2);
+
+                // Draw the original bitmap onto the rotated canvas
+                canvas.DrawBitmap(bitmap, 0, 0);
+            }
+
+            return rotatedBitmap;
+        }
+
+        private static void SaveBitmap(SKBitmap bitmap, string filePath)
+        {
+            using (SKImage image = SKImage.FromBitmap(bitmap))
+            using (SKData data = image.Encode(SKEncodedImageFormat.Png, 100))
+            using (var stream = File.OpenWrite(filePath))
+            {
+                data.SaveTo(stream);
+            }
+        }
+    }
+}
