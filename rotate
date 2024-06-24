@@ -1,0 +1,73 @@
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+
+namespace ImageRotation
+{
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            // File paths
+            string inputFilePath = "path_to_your_image.png";
+            string outputFilePath = "rotated_8bit_image.png";
+
+            try
+            {
+                // Load the PNG image
+                using (Bitmap originalBitmap = new Bitmap(inputFilePath))
+                {
+                    // Rotate the image by 90 degrees
+                    originalBitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
+
+                    // Convert to 8-bit format
+                    using (Bitmap bitmap8bpp = ConvertTo8bpp(originalBitmap))
+                    {
+                        // Save the rotated image as an 8-bit PNG
+                        bitmap8bpp.Save(outputFilePath, ImageFormat.Png);
+
+                        Console.WriteLine("Image rotated, converted to 8-bit, and saved successfully.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("An error occurred: " + ex.Message);
+            }
+        }
+
+        private static Bitmap ConvertTo8bpp(Bitmap originalBitmap)
+        {
+            // Create a new 8bpp indexed bitmap
+            Bitmap bitmap8bpp = new Bitmap(originalBitmap.Width, originalBitmap.Height, PixelFormat.Format8bppIndexed);
+
+            // Use a grayscale palette (optional)
+            ColorPalette palette = bitmap8bpp.Palette;
+            for (int i = 0; i < 256; i++)
+            {
+                palette.Entries[i] = Color.FromArgb(i, i, i);
+            }
+            bitmap8bpp.Palette = palette;
+
+            // Lock the bits of the 8bpp bitmap
+            BitmapData bitmapData = bitmap8bpp.LockBits(new Rectangle(0, 0, bitmap8bpp.Width, bitmap8bpp.Height), ImageLockMode.WriteOnly, PixelFormat.Format8bppIndexed);
+
+            // Copy pixel data from the original bitmap to the 8bpp bitmap
+            for (int y = 0; y < originalBitmap.Height; y++)
+            {
+                for (int x = 0; x < originalBitmap.Width; x++)
+                {
+                    Color color = originalBitmap.GetPixel(x, y);
+                    int grayValue = (color.R + color.G + color.B) / 3;
+                    IntPtr pixelAddress = bitmapData.Scan0 + y * bitmapData.Stride + x;
+                    System.Runtime.InteropServices.Marshal.WriteByte(pixelAddress, (byte)grayValue);
+                }
+            }
+
+            // Unlock the bits
+            bitmap8bpp.UnlockBits(bitmapData);
+
+            return bitmap8bpp;
+        }
+    }
+}
