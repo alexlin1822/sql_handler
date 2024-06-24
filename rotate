@@ -1,33 +1,41 @@
 using System;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.IO;
+using PdfiumViewer;
+using SkiaSharp;
 
-namespace ImageRotation
+namespace PdfToPngExample
 {
     class Program
     {
         static void Main(string[] args)
         {
             // File paths
-            string inputFilePath = "path_to_your_image.png";
-            string outputFilePath = "rotated_8bit_image.png";
+            string pdfFilePath = "path_to_your_pdf.pdf";
+            string outputFilePathOriginal = "output_page.png";
+            string outputFilePathRotated = "output_page_rotated.png";
 
             try
             {
-                // Load the PNG image
-                using (Bitmap originalBitmap = new Bitmap(inputFilePath))
+                // Convert the first page of the PDF to PNG
+                using (var pdfDocument = PdfDocument.Load(pdfFilePath))
+                using (var pdfPage = pdfDocument.Render(0, 300, 300, true))
                 {
-                    // Rotate the image by 90 degrees
-                    originalBitmap.RotateFlip(RotateFlipType.Rotate90FlipNone);
+                    // Save the original PNG
+                    pdfPage.Save(outputFilePathOriginal, ImageFormat.Png);
 
-                    // Convert to 8-bit format
-                    using (Bitmap bitmap8bpp = ConvertTo8bpp(originalBitmap))
+                    // Rotate the PNG by 90 degrees and save
+                    using (var bitmap = ConvertToSkBitmap(pdfPage))
+                    using (var rotatedBitmap = RotateBitmap(bitmap, 90))
+                    using (var image = SKImage.FromBitmap(rotatedBitmap))
+                    using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
+                    using (var stream = File.OpenWrite(outputFilePathRotated))
                     {
-                        // Save the rotated image as an 8-bit PNG
-                        bitmap8bpp.Save(outputFilePath, ImageFormat.Png);
-
-                        Console.WriteLine("Image rotated, converted to 8-bit, and saved successfully.");
+                        data.SaveTo(stream);
                     }
+
+                    Console.WriteLine("Images saved successfully.");
                 }
             }
             catch (Exception ex)
@@ -36,38 +44,29 @@ namespace ImageRotation
             }
         }
 
-        private static Bitmap ConvertTo8bpp(Bitmap originalBitmap)
+        private static SKBitmap ConvertToSkBitmap(Bitmap bitmap)
         {
-            // Create a new 8bpp indexed bitmap
-            Bitmap bitmap8bpp = new Bitmap(originalBitmap.Width, originalBitmap.Height, PixelFormat.Format8bppIndexed);
-
-            // Use a grayscale palette (optional)
-            ColorPalette palette = bitmap8bpp.Palette;
-            for (int i = 0; i < 256; i++)
+            using (var ms = new MemoryStream())
             {
-                palette.Entries[i] = Color.FromArgb(i, i, i);
+                bitmap.Save(ms, ImageFormat.Png);
+                ms.Seek(0, SeekOrigin.Begin);
+                return SKBitmap.Decode(ms);
             }
-            bitmap8bpp.Palette = palette;
+        }
 
-            // Lock the bits of the 8bpp bitmap
-            BitmapData bitmapData = bitmap8bpp.LockBits(new Rectangle(0, 0, bitmap8bpp.Width, bitmap8bpp.Height), ImageLockMode.WriteOnly, PixelFormat.Format8bppIndexed);
+        private static SKBitmap RotateBitmap(SKBitmap originalBitmap, float degrees)
+        {
+            var rotatedBitmap = new SKBitmap(originalBitmap.Height, originalBitmap.Width);
 
-            // Copy pixel data from the original bitmap to the 8bpp bitmap
-            for (int y = 0; y < originalBitmap.Height; y++)
+            using (var canvas = new SKCanvas(rotatedBitmap))
             {
-                for (int x = 0; x < originalBitmap.Width; x++)
-                {
-                    Color color = originalBitmap.GetPixel(x, y);
-                    int grayValue = (color.R + color.G + color.B) / 3;
-                    IntPtr pixelAddress = bitmapData.Scan0 + y * bitmapData.Stride + x;
-                    System.Runtime.InteropServices.Marshal.WriteByte(pixelAddress, (byte)grayValue);
-                }
+                canvas.Translate(rotatedBitmap.Width / 2, rotatedBitmap.Height / 2);
+                canvas.RotateDegrees(degrees);
+                canvas.Translate(-originalBitmap.Width / 2, -originalBitmap.Height / 2);
+                canvas.DrawBitmap(originalBitmap, 0, 0);
             }
 
-            // Unlock the bits
-            bitmap8bpp.UnlockBits(bitmapData);
-
-            return bitmap8bpp;
+            return rotatedBitmap;
         }
     }
 }
