@@ -1,0 +1,32 @@
+using System;
+using System.IO;
+using System.Security.Cryptography;
+
+class Program
+{
+    static void Main()
+    {
+        string filePath = "path/to/your/file.txt";
+        string sha256Checksum = CalculateSHA256Checksum(filePath);
+        Console.WriteLine($"SHA-256 Checksum: {sha256Checksum}");
+    }
+
+    static string CalculateSHA256Checksum(string filePath)
+    {
+        using (SHA256 sha256 = SHA256.Create())
+        {
+            using (FileStream fileStream = File.OpenRead(filePath))
+            {
+                byte[] hashBytes = sha256.ComputeHash(fileStream);
+
+                // Convert the byte array to hexadecimal string
+                StringBuilder sb = new StringBuilder();
+                for (int i = 0; i < hashBytes.Length; i++)
+                {
+                    sb.Append(hashBytes[i].ToString("X2"));
+                }
+                return sb.ToString();
+            }
+        }
+    }
+}
