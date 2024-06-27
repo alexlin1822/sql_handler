@@ -58,4 +58,28 @@ class Program
 
         return pixelData;
     }
+
+   static byte[] Get8BitPixelData(Bitmap bitmap)
+    {
+        int width = bitmap.Width;
+        int height = bitmap.Height;
+
+        // Lock the bitmap data
+        BitmapData bmpData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadOnly, PixelFormat.Format8bppIndexed);
+        
+        // Get the stride (number of bytes per scanline)
+        int stride = bmpData.Stride;
+
+        // Create a byte array to hold the pixel data
+        byte[] pixelData = new byte[height * stride];
+
+        // Copy the bitmap data to the byte array
+        IntPtr ptr = bmpData.Scan0;
+        System.Runtime.InteropServices.Marshal.Copy(ptr, pixelData, 0, pixelData.Length);
+
+        // Unlock the bitmap data
+        bitmap.UnlockBits(bmpData);
+
+        return pixelData;
+    }
 }
