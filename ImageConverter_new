@@ -1,0 +1,88 @@
+using System;
+using System.Drawing;
+using System.Drawing.Imaging;
+
+public class ImageConverter
+{
+    public static void ConvertTo8Bit(string inputPath, string outputPath)
+    {
+        using (Bitmap bmp = new Bitmap(inputPath))
+        {
+            using (Bitmap newBmp = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format8bppIndexed))
+            {
+                // Create a grayscale color palette
+                ColorPalette palette = newBmp.Palette;
+                for (int i = 0; i < 256; i++)
+                {
+                    palette.Entries[i] = Color.FromArgb(i, i, i);
+                }
+                newBmp.Palette = palette;
+
+                // Lock the bitmap's bits
+                BitmapData bmpData = newBmp.LockBits(new Rectangle(0, 0, newBmp.Width, newBmp.Height), ImageLockMode.WriteOnly, PixelFormat.Format8bppIndexed);
+                
+                // Copy the bitmap data
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    for (int x = 0; x < bmp.Width; x++)
+                    {
+                        Color color = bmp.GetPixel(x, y);
+                        int gray = (color.R + color.G + color.B) / 3;
+                        Marshal.WriteByte(bmpData.Scan0, y * bmpData.Stride + x, (byte)gray);
+                    }
+                }
+
+                newBmp.UnlockBits(bmpData);
+                newBmp.Save(outputPath, ImageFormat.Png);
+            }
+        }
+    }
+
+    public static void ConvertTo1Bit(string inputPath, string outputPath)
+    {
+        using (Bitmap bmp = new Bitmap(inputPath))
+        {
+            using (Bitmap newBmp = new Bitmap(bmp.Width, bmp.Height, PixelFormat.Format1bppIndexed))
+            {
+                // Lock the bitmap's bits
+                BitmapData bmpData = newBmp.LockBits(new Rectangle(0, 0, newBmp.Width, newBmp.Height), ImageLockMode.WriteOnly, PixelFormat.Format1bppIndexed);
+                
+                // Copy the bitmap data
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    for (int x = 0; x < bmp.Width; x++)
+                    {
+                        Color color = bmp.GetPixel(x, y);
+                        int gray = (color.R + color.G + color.B) / 3;
+                        SetIndexedPixel(bmpData, x, y, gray > 128);
+                    }
+                }
+
+                newBmp.UnlockBits(bmpData);
+                newBmp.Save(outputPath, ImageFormat.Png);
+            }
+        }
+    }
+
+    private static void SetIndexedPixel(BitmapData bmpData, int x, int y, bool isWhite)
+    {
+        int index = x + (y * bmpData.Stride * 8 / bmpData.Width);
+        int byteIndex = index / 8;
+        int bitIndex = index % 8;
+
+        IntPtr ptr = bmpData.Scan0 + byteIndex;
+        byte oldByte = Marshal.ReadByte(ptr);
+        byte mask = (byte)(0x80 >> bitIndex);
+        
+        if (isWhite)
+        {
+            oldByte |= mask;
+        }
+        else
+        {
+            oldByte &= (byte)~mask;
+        }
+
+        Marshal.WriteByte(ptr, oldByte);
+    }
+}
